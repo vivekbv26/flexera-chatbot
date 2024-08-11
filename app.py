@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 import json
-from difflib import get_close_matches
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, pipeline
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 
@@ -23,8 +23,21 @@ def train_intent_classifier(knowledge_base):
     return vectorizer, clf
 
 # Load and train
-knowledge_base = load_knowledge_base('C:/Users/Vivek/flexera/kn.json')
+knowledge_base = load_knowledge_base('C:/Users/Vivek/chatbot/flexera-chatbot/kn.json')
 vectorizer, clf = train_intent_classifier(knowledge_base)
+
+# Load pre-trained RoBERTa model for abusive word detection
+model_name = "cardiffnlp/twitter-roberta-base-offensive"
+tokenizer = RobertaTokenizer.from_pretrained(model_name)
+model = RobertaForSequenceClassification.from_pretrained(model_name)
+abusive_classifier = pipeline('sentiment-analysis', model=model, tokenizer=tokenizer)
+
+# Function to check for abusive language
+def is_abusive(text):
+    result = abusive_classifier(text)[0]
+    label = result['label']
+    # Adjust label comparison based on model's output
+    return label == 'LABEL_1'
 
 # Home route to serve the frontend
 @app.route('/')
@@ -35,6 +48,12 @@ def home():
 @app.route('/get-response', methods=['POST'])
 def get_response():
     user_input = request.json.get('message')
+    
+    # Check if the input contains abusive content
+    if is_abusive(user_input):
+        return jsonify({'response': "Your message contains inappropriate content and cannot be processed."})
+    
+    # Intent classification
     X_user = vectorizer.transform([user_input])
     predicted_answer = clf.predict(X_user)[0]
     return jsonify({'response': predicted_answer})
