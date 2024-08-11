@@ -52,11 +52,11 @@ def get_response():
     # Check if the input contains abusive content
     if is_abusive(user_input):
         return jsonify({'response': "Your message contains inappropriate content and cannot be processed."})
-    
+    else:
     # Intent classification
-    X_user = vectorizer.transform([user_input])
-    predicted_answer = clf.predict(X_user)[0]
-    return jsonify({'response': predicted_answer})
+        X_user = vectorizer.transform([user_input])
+        predicted_answer = clf.predict(X_user)[0]
+        return jsonify({'response': predicted_answer})
 
 # Run the Flask app
 if __name__ == '__main__':
